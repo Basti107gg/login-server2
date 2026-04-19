@@ -166,7 +166,7 @@ body { font-family: Arial; }
 
 <hr>
 
-<h2>👤 User Liste (klicken)</h2>
+<h2>👤 User Liste</h2>
 
 {% for user, data in accounts.items() %}
     <div class="user" onclick="openUser('{{user}}','{{data['password']}}','{{data.get('permissions', [])}}')">
