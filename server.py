@@ -1,33 +1,23 @@
-from flask import Flask, request, jsonify, render_template_string, redirect, session
-import json, os
+from flask import Flask, request, jsonify
+import json
+import os
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "MEGA_SECRET_KEY_123456")
 
 DB_FILE = "accounts.json"
 
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "29a10C00")
-
-
 # =========================
-# LOAD / SAVE
+# ACCOUNTS
 # =========================
 def load_accounts():
     if not os.path.exists(DB_FILE):
-        with open(DB_FILE, "w") as f:
-            json.dump({}, f)
-
+        return {}
     with open(DB_FILE, "r") as f:
         return json.load(f)
 
 
-def save_accounts(data):
-    with open(DB_FILE, "w") as f:
-        json.dump(data, f, indent=4)
-
-
 # =========================
-# LOGIN API (WICHTIG FIX)
+# LOGIN
 # =========================
 @app.route("/login", methods=["POST"])
 def login():
@@ -37,133 +27,51 @@ def login():
 
     accounts = load_accounts()
 
-    # 🔥 SAFE CHECK (keine Fehler mehr)
-    if user in accounts:
-        if isinstance(accounts[user], dict):
-            if accounts[user].get("password") == pw:
-                return jsonify({
-                    "status": "ok",
-                    "permissions": accounts[user].get("permissions", [])
-                })
+    if user in accounts and accounts[user]["password"] == pw:
+        return jsonify({
+            "status": "ok",
+            "permissions": accounts[user].get("permissions", [])
+        })
 
     return jsonify({"status": "error"})
 
 
 # =========================
-# ADMIN LOGIN
+# INBOX SYSTEM
 # =========================
-@app.route("/admin-login", methods=["GET", "POST"])
-def admin_login():
-    if request.method == "POST":
-        if request.form.get("password") == ADMIN_PASSWORD:
-            session["admin"] = True
-            return redirect("/admin")
-        return "❌ Falsch"
-
-    return """
-    <h2>Admin Login</h2>
-    <form method="post">
-        <input type="password" name="password">
-        <button>Login</button>
-    </form>
-    """
+inbox = {}
 
 
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect("/admin-login")
+@app.route("/send", methods=["POST"])
+def send():
+    data = request.json
+
+    to = data.get("to")
+    frm = data.get("from")
+    payload = data.get("payload")
+
+    if to not in inbox:
+        inbox[to] = []
+
+    inbox[to].append({
+        "from": frm,
+        "payload": payload
+    })
+
+    return {"status": "ok"}
 
 
-# =========================
-# ADMIN PANEL
-# =========================
-@app.route("/admin", methods=["GET", "POST"])
-def admin():
-    if not session.get("admin"):
-        return redirect("/admin-login")
+@app.route("/inbox", methods=["POST"])
+def get_inbox():
+    user = request.json.get("username")
 
-    accounts = load_accounts()
-
-    # CREATE
-    if request.method == "POST" and "create" in request.form:
-        user = request.form.get("username")
-        pw = request.form.get("password")
-
-        if user and pw:
-            accounts[user] = {
-                "password": pw,
-                "permissions": []
-            }
-            save_accounts(accounts)
-
-    # DELETE
-    if request.method == "POST" and "delete" in request.form:
-        user = request.form.get("delete")
-        if user in accounts:
-            del accounts[user]
-            save_accounts(accounts)
-
-    # TOGGLE PERMISSION
-    if request.method == "POST" and "toggle" in request.form:
-        user = request.form.get("user")
-        perm = request.form.get("perm")
-
-        if user in accounts:
-            if perm in accounts[user]["permissions"]:
-                accounts[user]["permissions"].remove(perm)
-            else:
-                accounts[user]["permissions"].append(perm)
-            save_accounts(accounts)
-
-    return render_template_string("""
-    <h1>ADMIN PANEL</h1>
-
-    <a href="/logout">Logout</a>
-
-    <hr>
-
-    <h2>➕ Account erstellen</h2>
-    <form method="post">
-        <input name="username">
-        <input name="password">
-        <button name="create">Erstellen</button>
-    </form>
-
-    <hr>
-
-    <h2>📦 Accounts</h2>
-
-    {% for user, data in accounts.items() %}
-        <div style="border:1px solid #ccc;padding:10px;margin:10px;">
-            <b>{{user}}</b><br>
-            Passwort: {{data["password"]}}<br>
-            Rechte: {{data.get("permissions", [])}}
-
-            <form method="post">
-                <input type="hidden" name="user" value="{{user}}">
-                <input type="hidden" name="perm" value="fahrplan_editor">
-                <button name="toggle">Fahrplan Editor</button>
-            </form>
-
-            <form method="post">
-                <input type="hidden" name="user" value="{{user}}">
-                <input type="hidden" name="perm" value="fahrplaene">
-                <button name="toggle">Fahrpläne</button>
-            </form>
-
-            <form method="post">
-                <input type="hidden" name="delete" value="{{user}}">
-                <button>Löschen</button>
-            </form>
-        </div>
-    {% endfor %}
-    """, accounts=accounts)
+    return {
+        "messages": inbox.get(user, [])
+    }
 
 
 # =========================
-# START
+# RUN
 # =========================
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=5000)
