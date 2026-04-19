@@ -3,13 +3,16 @@ import json
 import os
 
 app = Flask(__name__)
-app.secret_key = "CHANGE_ME_SECRET"
+app.secret_key = "CHANGE_ME_SUPER_SECRET"
 
 DB_FILE = "accounts.json"
 
+# 🔐 ADMIN PASSWORT
+ADMIN_PASSWORD = "29a10C00"
+
 
 # =========================
-# DB
+# DATABASE
 # =========================
 def load_accounts():
     if not os.path.exists(DB_FILE):
@@ -26,7 +29,7 @@ def save_accounts(data):
 
 
 # =========================
-# ROOT CHECK
+# ROOT
 # =========================
 @app.route("/")
 def home():
@@ -59,16 +62,16 @@ def login():
 @app.route("/admin-login", methods=["GET", "POST"])
 def admin_login():
     if request.method == "POST":
-        if request.form.get("password") == "ADMIN123":
+        if request.form.get("password") == ADMIN_PASSWORD:
             session["admin"] = True
             return redirect("/admin")
 
-        return "❌ Falsches Passwort"
+        return "❌ Falsches Admin Passwort"
 
     return """
     <h2>🔐 Admin Login</h2>
     <form method="post">
-        <input type="password" name="password">
+        <input type="password" name="password" placeholder="Admin Passwort">
         <button>Login</button>
     </form>
     """
@@ -84,7 +87,7 @@ def logout():
 
 
 # =========================
-# ADMIN PANEL (DEIN ORIGINAL STIL)
+# ADMIN PANEL
 # =========================
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
@@ -93,7 +96,7 @@ def admin():
 
     accounts = load_accounts()
 
-    # CREATE ACCOUNT
+    # ➕ ACCOUNT ERSTELLEN
     if request.method == "POST" and "create" in request.form:
         user = request.form.get("username")
         pw = request.form.get("password")
@@ -105,14 +108,14 @@ def admin():
 
         save_accounts(accounts)
 
-    # DELETE ACCOUNT
+    # 🗑 ACCOUNT LÖSCHEN
     if request.method == "POST" and "delete" in request.form:
         user = request.form.get("delete")
         if user in accounts:
             del accounts[user]
             save_accounts(accounts)
 
-    # ADD PERMISSION
+    # 🔐 PERMISSION GEBEN
     if request.method == "POST" and "perm" in request.form:
         user = request.form.get("user")
         perm = request.form.get("perm")
@@ -150,10 +153,10 @@ def admin():
 
     <hr>
 
-    <h2>🔐 Permission geben</h2>
+    <h2>🔐 Permission vergeben</h2>
     <form method="post">
         <input name="user" placeholder="User">
-        <input name="perm" placeholder="Permission">
+        <input name="perm" placeholder="Permission (z.B. fahrplan_editor)">
         <button>Add</button>
     </form>
 
@@ -172,7 +175,7 @@ def admin():
 
 
 # =========================
-# RAILWAY START FIX
+# RAILWAY START
 # =========================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
