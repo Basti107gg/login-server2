@@ -4,16 +4,32 @@ import os
 
 app = Flask(__name__)
 
+# =========================
+# FILE DB
+# =========================
 DB_FILE = "accounts.json"
 
+inbox = {}
+
+
 # =========================
-# ACCOUNTS
+# LOAD ACCOUNTS
 # =========================
 def load_accounts():
     if not os.path.exists(DB_FILE):
-        return {}
+        with open(DB_FILE, "w") as f:
+            json.dump({}, f)
+
     with open(DB_FILE, "r") as f:
         return json.load(f)
+
+
+# =========================
+# ROOT (WICHTIG)
+# =========================
+@app.route("/")
+def home():
+    return "🚆 Railway Server läuft"
 
 
 # =========================
@@ -37,11 +53,8 @@ def login():
 
 
 # =========================
-# INBOX SYSTEM
+# SEND SYSTEM
 # =========================
-inbox = {}
-
-
 @app.route("/send", methods=["POST"])
 def send():
     data = request.json
@@ -49,6 +62,9 @@ def send():
     to = data.get("to")
     frm = data.get("from")
     payload = data.get("payload")
+
+    if not to:
+        return {"status": "error"}
 
     if to not in inbox:
         inbox[to] = []
@@ -61,6 +77,9 @@ def send():
     return {"status": "ok"}
 
 
+# =========================
+# INBOX
+# =========================
 @app.route("/inbox", methods=["POST"])
 def get_inbox():
     user = request.json.get("username")
@@ -71,7 +90,8 @@ def get_inbox():
 
 
 # =========================
-# RUN
+# RAILWAY START FIX
 # =========================
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
