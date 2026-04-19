@@ -1,11 +1,10 @@
 from flask import Flask, request, jsonify, render_template_string, redirect, session
-import json, os, shutil
+import json, os
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "MEGA_SECRET_KEY_123456")
 
 DB_FILE = "accounts.json"
-BACKUP_FILE = "accounts_backup.json"
 
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "29a10C00")
 
@@ -18,22 +17,17 @@ def load_accounts():
         with open(DB_FILE, "w") as f:
             json.dump({}, f)
 
-    try:
-        with open(DB_FILE, "r") as f:
-            return json.load(f)
-    except:
-        return {}
+    with open(DB_FILE, "r") as f:
+        return json.load(f)
+
 
 def save_accounts(data):
-    if os.path.exists(DB_FILE):
-        shutil.copy(DB_FILE, BACKUP_FILE)
-
     with open(DB_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
 
 # =========================
-# LOGIN API
+# LOGIN API (WICHTIG FIX)
 # =========================
 @app.route("/login", methods=["POST"])
 def login():
@@ -43,11 +37,14 @@ def login():
 
     accounts = load_accounts()
 
-    if user in accounts and accounts[user]["password"] == pw:
-        return jsonify({
-            "status": "ok",
-            "permissions": accounts[user].get("permissions", [])
-        })
+    # 🔥 SAFE CHECK (keine Fehler mehr)
+    if user in accounts:
+        if isinstance(accounts[user], dict):
+            if accounts[user].get("password") == pw:
+                return jsonify({
+                    "status": "ok",
+                    "permissions": accounts[user].get("permissions", [])
+                })
 
     return jsonify({"status": "error"})
 
@@ -79,7 +76,7 @@ def logout():
 
 
 # =========================
-# ADMIN PANEL (CLICK SYSTEM)
+# ADMIN PANEL
 # =========================
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
@@ -117,114 +114,51 @@ def admin():
                 accounts[user]["permissions"].remove(perm)
             else:
                 accounts[user]["permissions"].append(perm)
-
             save_accounts(accounts)
 
     return render_template_string("""
-<!DOCTYPE html>
-<html>
-<head>
-<title>Admin Panel</title>
-<style>
-body { font-family: Arial; }
+    <h1>ADMIN PANEL</h1>
 
-.user {
-    padding:10px;
-    border:1px solid #ccc;
-    margin:5px;
-    cursor:pointer;
-}
+    <a href="/logout">Logout</a>
 
-#popup {
-    display:none;
-    position:fixed;
-    top:20%;
-    left:30%;
-    width:40%;
-    background:white;
-    border:2px solid black;
-    padding:20px;
-    z-index:1000;
-}
-</style>
-</head>
+    <hr>
 
-<body>
-
-<h1>🛠 ADMIN PANEL</h1>
-
-<a href="/logout">Logout</a>
-
-<hr>
-
-<h2>➕ Account erstellen</h2>
-<form method="post">
-    <input name="username" placeholder="Username"><br>
-    <input name="password" placeholder="Passwort"><br><br>
-    <button name="create">Erstellen</button>
-</form>
-
-<hr>
-
-<h2>👤 User Liste</h2>
-
-{% for user, data in accounts.items() %}
-    <div class="user" onclick="openUser('{{user}}','{{data['password']}}','{{data.get('permissions', [])}}')">
-        {{user}}
-    </div>
-{% endfor %}
-
-<!-- POPUP -->
-<div id="popup">
-    <h2 id="pu_user"></h2>
-
-    <p><b>Passwort:</b> <span id="pu_pass"></span></p>
-    <p><b>Rechte:</b> <span id="pu_perm"></span></p>
-
+    <h2>➕ Account erstellen</h2>
     <form method="post">
-        <input type="hidden" name="user" id="form_user">
-
-        <input type="hidden" name="perm" value="fahrplan_editor">
-        <button name="toggle">Fahrplan Editor</button>
+        <input name="username">
+        <input name="password">
+        <button name="create">Erstellen</button>
     </form>
 
-    <form method="post">
-        <input type="hidden" name="user" id="form_user2">
+    <hr>
 
-        <input type="hidden" name="perm" value="fahrplaene">
-        <button name="toggle">Fahrpläne</button>
-    </form>
+    <h2>📦 Accounts</h2>
 
-    <form method="post">
-        <input type="hidden" name="delete" id="form_delete">
-        <button>Löschen</button>
-    </form>
+    {% for user, data in accounts.items() %}
+        <div style="border:1px solid #ccc;padding:10px;margin:10px;">
+            <b>{{user}}</b><br>
+            Passwort: {{data["password"]}}<br>
+            Rechte: {{data.get("permissions", [])}}
 
-    <br>
-    <button onclick="closePopup()">Schließen</button>
-</div>
+            <form method="post">
+                <input type="hidden" name="user" value="{{user}}">
+                <input type="hidden" name="perm" value="fahrplan_editor">
+                <button name="toggle">Fahrplan Editor</button>
+            </form>
 
-<script>
-function openUser(user, pw, perm){
-    document.getElementById("popup").style.display="block";
+            <form method="post">
+                <input type="hidden" name="user" value="{{user}}">
+                <input type="hidden" name="perm" value="fahrplaene">
+                <button name="toggle">Fahrpläne</button>
+            </form>
 
-    document.getElementById("pu_user").innerText=user;
-    document.getElementById("pu_pass").innerText=pw;
-    document.getElementById("pu_perm").innerText=perm;
-
-    document.getElementById("form_user").value=user;
-    document.getElementById("form_user2").value=user;
-    document.getElementById("form_delete").value=user;
-}
-
-function closePopup(){
-    document.getElementById("popup").style.display="none";
-}
-</script>
-
-</body>
-</html>
-""", accounts=accounts)
+            <form method="post">
+                <input type="hidden" name="delete" value="{{user}}">
+                <button>Löschen</button>
+            </form>
+        </div>
+    {% endfor %}
+    """, accounts=accounts)
 
 
 # =========================
