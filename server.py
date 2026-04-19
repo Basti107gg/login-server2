@@ -11,7 +11,7 @@ ADMIN_PASSWORD = "29a10C00"
 
 
 # =========================
-# DATABASE
+# DB
 # =========================
 def load_accounts():
     if not os.path.exists(DB_FILE):
@@ -28,22 +28,11 @@ def save_accounts(data):
 
 
 # =========================
-# PERMISSIONS LIST (WICHTIG)
+# ONLY PERMISSIONS (WICHTIG)
 # =========================
-ALL_PERMISSIONS = [
-    "fahrplan_editor",
-    "fahrplan_view",
-    "fahrplan_create",
-    "fahrplan_delete",
-    "fahrplan_send",
-    "fahrplan_receive",
-    "user_create",
-    "user_delete",
-    "user_permissions",
-    "admin_panel",
-    "system_export",
-    "system_import",
-    "system_settings"
+PERMISSIONS = [
+    "Fahrplan_Editor",
+    "Fahrpläne"
 ]
 
 
@@ -115,7 +104,7 @@ def admin():
 
     accounts = load_accounts()
 
-    # CREATE ACCOUNT
+    # CREATE USER
     if request.method == "POST" and "create" in request.form:
         user = request.form.get("username")
         pw = request.form.get("password")
@@ -127,7 +116,7 @@ def admin():
 
         save_accounts(accounts)
 
-    # DELETE ACCOUNT
+    # DELETE USER
     if request.method == "POST" and "delete" in request.form:
         user = request.form.get("delete")
         if user in accounts:
@@ -150,12 +139,12 @@ def admin():
 
     <hr>
 
-    <h2>🗑 Accounts</h2>
+    <h2>👤 User</h2>
 
     <ul>
     {% for u, a in accounts.items() %}
         <li>
-            <b>{{u}}</b>
+            <b>{{u}}</b> → {{a.get("permissions", [])}}
             <button onclick="openPerm('{{u}}')">Permissions</button>
 
             <form method="post" style="display:inline;">
@@ -169,41 +158,36 @@ def admin():
     <!-- =========================
          PERMISSION WINDOW
     ========================== -->
-    <div id="permWindow" style="display:none; position:fixed; top:10%; left:30%; background:white; border:1px solid black; padding:20px;">
-        <h3>Permissions für <span id="userName"></span></h3>
+    <div id="win" style="display:none; position:fixed; top:20%; left:35%; background:white; padding:20px; border:1px solid black;">
+        <h3>Permissions für <span id="u"></span></h3>
 
-        <form method="post" id="permForm">
-            <input type="hidden" name="user" id="permUser">
+        <form method="post">
+            <input type="hidden" name="user" id="user">
 
-            {% for p in perms %}
-                <div>
-                    <input type="checkbox" name="perm" value="{{p}}" id="{{p}}">
-                    <label for="{{p}}">{{p}}</label>
-                </div>
-            {% endfor %}
+            <input type="checkbox" name="perm" value="Fahrplan_Editor"> Fahrplan_Editor<br>
+            <input type="checkbox" name="perm" value="Fahrpläne"> Fahrpläne<br>
 
             <br>
             <button name="save_perms">Speichern</button>
         </form>
 
-        <button onclick="closePerm()">Schließen</button>
+        <button onclick="closeW()">Schließen</button>
     </div>
 
     <script>
     function openPerm(user){
-        document.getElementById("permWindow").style.display = "block";
-        document.getElementById("userName").innerText = user;
-        document.getElementById("permUser").value = user;
+        document.getElementById("win").style.display = "block";
+        document.getElementById("u").innerText = user;
+        document.getElementById("user").value = user;
 
-        // Reset checkboxes
-        document.querySelectorAll("input[type=checkbox]").forEach(cb => cb.checked = false);
+        document.querySelectorAll("input[type=checkbox]").forEach(c => c.checked = false);
     }
 
-    function closePerm(){
-        document.getElementById("permWindow").style.display = "none";
+    function closeW(){
+        document.getElementById("win").style.display = "none";
     }
     </script>
-    """, accounts=accounts, perms=ALL_PERMISSIONS)
+    """, accounts=accounts)
 
 
 # =========================
