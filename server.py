@@ -1,15 +1,15 @@
-from flask import Flask, request, jsonify, redirect, session
+from flask import Flask, request, jsonify, redirect, session, render_template_string
 import json
 import os
 
 app = Flask(__name__)
-app.secret_key = "SUPER_SECRET_KEY_CHANGE_ME"
+app.secret_key = "CHANGE_ME_SECRET"
 
 DB_FILE = "accounts.json"
 
 
 # =========================
-# INIT DB
+# DB
 # =========================
 def load_accounts():
     if not os.path.exists(DB_FILE):
@@ -26,11 +26,11 @@ def save_accounts(data):
 
 
 # =========================
-# ROOT
+# ROOT CHECK
 # =========================
 @app.route("/")
 def home():
-    return "🚆 Server läuft"
+    return "🚆 Server läuft + Admin Panel aktiv"
 
 
 # =========================
@@ -59,18 +59,16 @@ def login():
 @app.route("/admin-login", methods=["GET", "POST"])
 def admin_login():
     if request.method == "POST":
-        pw = request.form.get("password")
-
-        if pw == "ADMIN123":   # 🔥 dein Admin Passwort
+        if request.form.get("password") == "ADMIN123":
             session["admin"] = True
             return redirect("/admin")
 
         return "❌ Falsches Passwort"
 
     return """
-    <h2>Admin Login</h2>
+    <h2>🔐 Admin Login</h2>
     <form method="post">
-        <input name="password" type="password">
+        <input type="password" name="password">
         <button>Login</button>
     </form>
     """
@@ -86,7 +84,7 @@ def logout():
 
 
 # =========================
-# ADMIN PANEL
+# ADMIN PANEL (DEIN ORIGINAL STIL)
 # =========================
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
@@ -95,7 +93,7 @@ def admin():
 
     accounts = load_accounts()
 
-    # ================= CREATE ACCOUNT
+    # CREATE ACCOUNT
     if request.method == "POST" and "create" in request.form:
         user = request.form.get("username")
         pw = request.form.get("password")
@@ -107,16 +105,16 @@ def admin():
 
         save_accounts(accounts)
 
-    # ================= DELETE ACCOUNT
+    # DELETE ACCOUNT
     if request.method == "POST" and "delete" in request.form:
         user = request.form.get("delete")
         if user in accounts:
             del accounts[user]
             save_accounts(accounts)
 
-    # ================= ADD PERMISSION
-    if request.method == "POST" and "add_perm" in request.form:
-        user = request.form.get("user_perm")
+    # ADD PERMISSION
+    if request.method == "POST" and "perm" in request.form:
+        user = request.form.get("user")
         perm = request.form.get("perm")
 
         if user in accounts:
@@ -128,8 +126,7 @@ def admin():
 
             save_accounts(accounts)
 
-    # ================= HTML PANEL
-    return """
+    return render_template_string("""
     <h1>ADMIN PANEL 🚆</h1>
 
     <a href="/logout">Logout</a>
@@ -153,24 +150,29 @@ def admin():
 
     <hr>
 
-    <h2>🔐 Permission hinzufügen</h2>
+    <h2>🔐 Permission geben</h2>
     <form method="post">
-        <input name="user_perm" placeholder="User">
-        <input name="perm" placeholder="z.B. fahrplan_editor">
-        <button name="add_perm">Hinzufügen</button>
+        <input name="user" placeholder="User">
+        <input name="perm" placeholder="Permission">
+        <button>Add</button>
     </form>
 
     <hr>
 
     <h2>📦 Accounts</h2>
-    """ + "".join([
-        f"<p><b>{u}</b> → {a.get('permissions', [])}</p>"
-        for u, a in accounts.items()
-    ])
+
+    <ul>
+    {% for u, a in accounts.items() %}
+        <li>
+            <b>{{u}}</b> → {{a.get("permissions", [])}}
+        </li>
+    {% endfor %}
+    </ul>
+    """, accounts=accounts)
 
 
 # =========================
-# RUN (RAILWAY SAFE)
+# RAILWAY START FIX
 # =========================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
