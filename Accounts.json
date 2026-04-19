@@ -1,1 +1,6 @@
-[]
+{
+  "Basti": {
+    "password": "29a10C00",
+    "permissions": ["fahrplaene"]
+  }
+}
