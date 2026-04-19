@@ -53,14 +53,6 @@ def login():
 
 
 # =========================
-# HOME
-# =========================
-@app.route("/")
-def home():
-    return redirect("/admin-login")
-
-
-# =========================
 # ADMIN LOGIN
 # =========================
 @app.route("/admin-login", methods=["GET", "POST"])
@@ -69,10 +61,10 @@ def admin_login():
         if request.form.get("password") == ADMIN_PASSWORD:
             session["admin"] = True
             return redirect("/admin")
-        return "❌ Falsches Passwort"
+        return "❌ Falsch"
 
     return """
-    <h2>🔒 Admin Login</h2>
+    <h2>Admin Login</h2>
     <form method="post">
         <input type="password" name="password">
         <button>Login</button>
@@ -80,9 +72,6 @@ def admin_login():
     """
 
 
-# =========================
-# LOGOUT
-# =========================
 @app.route("/logout")
 def logout():
     session.clear()
@@ -90,7 +79,7 @@ def logout():
 
 
 # =========================
-# ADMIN PANEL
+# ADMIN PANEL (CLICK SYSTEM)
 # =========================
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
@@ -131,66 +120,111 @@ def admin():
 
             save_accounts(accounts)
 
-
     return render_template_string("""
-    <h1>🛠 ADMIN PANEL</h1>
+<!DOCTYPE html>
+<html>
+<head>
+<title>Admin Panel</title>
+<style>
+body { font-family: Arial; }
 
-    <a href="/logout">Logout</a>
+.user {
+    padding:10px;
+    border:1px solid #ccc;
+    margin:5px;
+    cursor:pointer;
+}
 
-    <hr>
+#popup {
+    display:none;
+    position:fixed;
+    top:20%;
+    left:30%;
+    width:40%;
+    background:white;
+    border:2px solid black;
+    padding:20px;
+    z-index:1000;
+}
+</style>
+</head>
 
-    <h2>➕ Account erstellen</h2>
+<body>
+
+<h1>🛠 ADMIN PANEL</h1>
+
+<a href="/logout">Logout</a>
+
+<hr>
+
+<h2>➕ Account erstellen</h2>
+<form method="post">
+    <input name="username" placeholder="Username"><br>
+    <input name="password" placeholder="Passwort"><br><br>
+    <button name="create">Erstellen</button>
+</form>
+
+<hr>
+
+<h2>👤 User Liste (klicken)</h2>
+
+{% for user, data in accounts.items() %}
+    <div class="user" onclick="openUser('{{user}}','{{data['password']}}','{{data.get('permissions', [])}}')">
+        {{user}}
+    </div>
+{% endfor %}
+
+<!-- POPUP -->
+<div id="popup">
+    <h2 id="pu_user"></h2>
+
+    <p><b>Passwort:</b> <span id="pu_pass"></span></p>
+    <p><b>Rechte:</b> <span id="pu_perm"></span></p>
+
     <form method="post">
-        <input name="username" placeholder="Username"><br>
-        <input name="password" placeholder="Passwort"><br><br>
-        <button name="create">Erstellen</button>
+        <input type="hidden" name="user" id="form_user">
+
+        <input type="hidden" name="perm" value="fahrplan_editor">
+        <button name="toggle">Fahrplan Editor</button>
     </form>
 
-    <hr>
-
-    <h2>🗑 Account löschen</h2>
     <form method="post">
-        <input name="delete" placeholder="Username">
+        <input type="hidden" name="user" id="form_user2">
+
+        <input type="hidden" name="perm" value="fahrplaene">
+        <button name="toggle">Fahrpläne</button>
+    </form>
+
+    <form method="post">
+        <input type="hidden" name="delete" id="form_delete">
         <button>Löschen</button>
     </form>
 
-    <hr>
+    <br>
+    <button onclick="closePopup()">Schließen</button>
+</div>
 
-    <h2>📦 Accounts</h2>
+<script>
+function openUser(user, pw, perm){
+    document.getElementById("popup").style.display="block";
 
-    {% for user, data in accounts.items() %}
-        <div style="border:1px solid #ccc; padding:10px; margin:10px;">
-            <b>{{user}}</b><br>
-            Passwort: {{data["password"]}}<br>
-            Rechte: {{data.get("permissions", [])}}
+    document.getElementById("pu_user").innerText=user;
+    document.getElementById("pu_pass").innerText=pw;
+    document.getElementById("pu_perm").innerText=perm;
 
-            <br><br>
+    document.getElementById("form_user").value=user;
+    document.getElementById("form_user2").value=user;
+    document.getElementById("form_delete").value=user;
+}
 
-            <!-- Fahrplan Editor -->
-            <form method="post" style="display:inline;">
-                <input type="hidden" name="user" value="{{user}}">
-                <input type="hidden" name="perm" value="fahrplan_editor">
-                <button name="toggle">Fahrplan Editor</button>
-            </form>
+function closePopup(){
+    document.getElementById("popup").style.display="none";
+}
+</script>
 
-            <!-- Fahrpläne -->
-            <form method="post" style="display:inline;">
-                <input type="hidden" name="user" value="{{user}}">
-                <input type="hidden" name="perm" value="fahrplaene">
-                <button name="toggle">Fahrpläne</button>
-            </form>
-
-            <!-- Delete -->
-            <form method="post" style="display:inline;">
-                <form method="post">
-                    <input type="hidden" name="delete" value="{{user}}">
-                    <button>Löschen</button>
-                </form>
-            </form>
-
-        </div>
-    {% endfor %}
-    """, accounts=accounts)
+</body>
+</html>
+""", accounts=accounts)
 
 
 # =========================
